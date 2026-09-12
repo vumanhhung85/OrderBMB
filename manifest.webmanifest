@@ -1,0 +1,9 @@
+{
+  "name": "Boom Music Box — Gọi phục vụ",
+  "short_name": "Gọi phục vụ",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0b0b12",
+  "theme_color": "#0b0b12"
+}

@@ -1,0 +1,3 @@
+User-agent: *
+Disallow: /quay.html
+Disallow: /index.html
