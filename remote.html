@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>BMB Remote — Tìm bài YouTube</title>
+<style>
+  :root{ --bg:#0a0a0f; --panel:#15151f; --line:#2a2a3a; --ink:#f2f2f7; --quiet:#9a9ab0; --accent:#8b5cf6; --accent2:#c084fc; --good:#34d399; --warn:#fbbf24; }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg); color:var(--ink); font-family:-apple-system,"Segoe UI",Roboto,Arial,sans-serif; min-height:100vh; display:flex; flex-direction:column}
+  header{padding:12px 16px; background:linear-gradient(135deg,#1a1530,#0a0a0f); border-bottom:1px solid var(--line); display:flex; align-items:center; gap:10px; position:sticky; top:0; z-index:10}
+  .logo{width:32px;height:32px;border-radius:9px;background:linear-gradient(135deg,var(--accent),var(--accent2)); display:flex;align-items:center;justify-content:center;font-weight:800}
+  header .room{margin-left:auto; background:var(--accent); font-size:12px; font-weight:700; padding:3px 10px; border-radius:999px}
+  #gear{background:none; border:1px solid var(--line); color:var(--ink); border-radius:10px; padding:6px 10px; font-size:14px}
+
+  #now{padding:10px 16px; background:#120f1f; border-bottom:1px solid var(--line); font-size:14px}
+  #now .lbl{color:var(--quiet); font-size:12px} #now .t{font-weight:700; margin-top:2px}
+
+  #settings{display:none; padding:12px 16px; background:var(--panel); border-bottom:1px solid var(--line); font-size:13px; line-height:1.6}
+  #settings input[type=text], #settings input[type=password]{width:100%; background:#0e0e16; border:1px solid var(--line); color:var(--ink); border-radius:10px; padding:10px; font-size:14px; margin:6px 0}
+  #settings button{background:var(--accent); border:none; color:#fff; font-weight:700; border-radius:10px; padding:8px 14px; margin-top:4px}
+  #settings .hint{color:var(--quiet)}
+
+  .tabs{display:flex; border-bottom:1px solid var(--line)}
+  .tabs button{flex:1; background:none; border:none; color:var(--quiet); padding:12px; font-size:15px; font-weight:600; border-bottom:2px solid transparent}
+  .tabs button.on{color:var(--ink); border-bottom-color:var(--accent)}
+
+  #searchBox{display:flex; gap:8px; padding:12px 16px}
+  #searchBox input{flex:1; background:var(--panel); border:1px solid var(--line); color:var(--ink); border-radius:12px; padding:12px 14px; font-size:16px}
+  #searchBox button{background:var(--accent); border:none; color:#fff; font-weight:700; border-radius:12px; padding:0 18px; font-size:15px}
+  .opt{padding:0 16px 8px; color:var(--quiet); font-size:13px; display:flex; align-items:center; gap:8px}
+
+  .list{flex:1; overflow:auto; padding:0 16px 190px}
+  .row{display:flex; align-items:center; gap:12px; padding:10px 0; border-bottom:1px solid var(--line)}
+  .row img{width:96px; height:54px; object-fit:cover; border-radius:8px; background:#20202e; flex:0 0 auto}
+  .row .meta{flex:1; min-width:0}
+  .row .name{font-weight:600; font-size:14px; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden}
+  .row .sub{color:var(--quiet); font-size:12px; margin-top:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+  .row button{background:var(--accent); border:none; color:#fff; font-weight:700; border-radius:10px; padding:9px 12px; font-size:13px; flex:0 0 auto}
+  .row button.ghost{background:#20202e; border:1px solid var(--line)}
+  .row.cur{background:#1b1530}
+  .msg{color:var(--quiet); text-align:center; padding:30px 0; line-height:1.6}
+  .err{color:#fecdd3}
+
+  #dock{position:fixed; left:0; right:0; bottom:0; background:var(--panel); border-top:1px solid var(--line); padding:10px 12px calc(10px + env(safe-area-inset-bottom)); display:flex; flex-direction:column; gap:8px}
+  .ctrlRow{display:flex; gap:8px; align-items:center}
+  .ctrlRow button{flex:1; background:#20202e; border:1px solid var(--line); color:var(--ink); border-radius:12px; padding:12px 6px; font-size:14px; font-weight:600}
+  .ctrlRow button.primary{background:linear-gradient(135deg,var(--accent),var(--accent2)); border:none}
+  .vol{display:flex; align-items:center; gap:10px; background:#0e0e16; border:1px solid var(--line); border-radius:12px; padding:8px 12px}
+  .vol label{color:var(--quiet); font-size:12px} .vol input{flex:1}
+</style>
+</head>
+<body>
+<header>
+  <div class="logo">B</div><b>BMB Remote</b> <span style="color:var(--quiet);font-size:12px">YouTube nhúng</span>
+  <div class="room" id="roomTag">PHÒNG</div>
+  <button id="gear" aria-label="Cài đặt">⚙</button>
+</header>
+
+<div id="settings">
+  <b>YouTube Data API key</b> (chỉ dùng để tìm bài; lưu trong trình duyệt này)
+  <input type="password" id="keyInput" placeholder="Dán API key vào đây" autocomplete="off">
+  <button id="saveKey">Lưu</button> <button id="clearKey" style="background:#20202e;border:1px solid var(--line)">Xoá</button>
+  <div class="hint" style="margin-top:8px">
+    Lấy key: Google Cloud Console → bật <i>YouTube Data API v3</i> → Credentials → Create API key (nên giới hạn theo HTTP referrer và theo API).<br>
+    Hạn mức mặc định 10.000 đơn vị/ngày, mỗi lượt tìm tốn 100 đơn vị (≈ 100 lượt tìm/ngày). Kết quả đã tìm được lưu tạm để không tốn thêm.
+  </div>
+</div>
+
+<div id="now"><div class="lbl">Đang hát</div><div class="t" id="nowTitle">—</div></div>
+
+<div class="tabs">
+  <button id="tabSearch" class="on">Tìm bài</button>
+  <button id="tabQueue">Hàng chờ (<span id="qCount">0</span>)</button>
+</div>
+
+<div id="paneSearch">
+  <div id="searchBox">
+    <input id="q" type="search" placeholder="Tên bài hoặc ca sĩ…" autocomplete="off" enterkeyhint="search">
+    <button id="goBtn">Tìm</button>
+  </div>
+  <div class="opt"><input type="checkbox" id="kw" checked><label for="kw">Tự thêm chữ “karaoke” vào từ khoá</label></div>
+  <div class="list" id="results"><div class="msg">Nhập tên bài rồi bấm Tìm (hoặc Enter).</div></div>
+</div>
+
+<div id="paneQueue" style="display:none"><div class="list" id="queueList"></div></div>
+
+<div id="dock">
+  <div class="ctrlRow">
+    <button class="primary" id="playBtn">▶ Phát/Dừng</button>
+    <button id="replayBtn">↺ Hát lại</button>
+    <button id="nextBtn">⏭ Bài kế</button>
+    <button id="muteBtn">🔊</button>
+  </div>
+  <div class="vol"><label>Âm lượng</label><input type="range" id="vol" min="0" max="100" value="100"></div>
+</div>
+
+<script>
+const params = new URLSearchParams(location.search);
+const ROOM = (params.get('room') || 'P1').toUpperCase();
+const bc = new BroadcastChannel('bmb-yt-' + ROOM);
+const $ = id => document.getElementById(id);
+const KEY_NAME = 'bmb_yt_api_key';
+$('roomTag').textContent = 'PHÒNG ' + ROOM;
+
+const send = (action, extra) => bc.postMessage({ type:'cmd', payload:Object.assign({action}, extra||{}) });
+
+/* ---------- Cài đặt API key ---------- */
+const getKey = () => { try{ return localStorage.getItem(KEY_NAME) || ''; }catch(e){ return ''; } };
+$('gear').onclick = () => { const s=$('settings'); s.style.display = s.style.display==='block' ? 'none' : 'block'; };
+$('saveKey').onclick = () => { try{ localStorage.setItem(KEY_NAME, $('keyInput').value.trim()); }catch(e){} $('keyInput').value=''; $('settings').style.display='none'; msg('Đã lưu key. Nhập tên bài để tìm.'); };
+$('clearKey').onclick = () => { try{ localStorage.removeItem(KEY_NAME); }catch(e){} msg('Đã xoá key.'); };
+if(!getKey()) $('settings').style.display = 'block';
+
+/* ---------- Tìm bài (YouTube Data API v3) ---------- */
+const cache = new Map();
+const decode = s => new DOMParser().parseFromString(s || '', 'text/html').documentElement.textContent;
+function msg(text, err){ const b=$('results'); b.replaceChildren(); const d=document.createElement('div'); d.className='msg'+(err?' err':''); d.textContent=text; b.append(d); }
+
+async function search(){
+  const raw = $('q').value.trim(); if(!raw) return;
+  const key = getKey();
+  if(!key){ $('settings').style.display='block'; msg('Cần dán YouTube API key trước (nút ⚙).', true); return; }
+  const term = ($('kw').checked && !/karaoke/i.test(raw)) ? raw + ' karaoke' : raw;
+  if(cache.has(term)){ renderResults(cache.get(term)); return; }
+  msg('Đang tìm…');
+  try{
+    const url = 'https://www.googleapis.com/youtube/v3/search?' + new URLSearchParams({
+      part:'snippet', type:'video', videoEmbeddable:'true', maxResults:'12',
+      q:term, regionCode:'VN', relevanceLanguage:'vi', key });
+    const res = await fetch(url);
+    const data = await res.json();
+    if(!res.ok){
+      const reason = data.error && data.error.errors && data.error.errors[0] ? data.error.errors[0].reason : '';
+      if(reason === 'quotaExceeded') return msg('Hết hạn mức tìm kiếm trong ngày (10.000 đơn vị). Thử lại sau 0h giờ Thái Bình Dương (~14h–15h Việt Nam).', true);
+      return msg('Lỗi tìm kiếm: ' + ((data.error && data.error.message) || res.status), true);
+    }
+    const items = (data.items || []).filter(x => x.id && x.id.videoId).map(x => ({
+      id:x.id.videoId, title:decode(x.snippet.title), channel:decode(x.snippet.channelTitle),
+      thumb:(x.snippet.thumbnails && (x.snippet.thumbnails.medium || x.snippet.thumbnails.default) || {}).url || '' }));
+    cache.set(term, items); renderResults(items);
+  }catch(e){ msg('Không kết nối được tới YouTube API. Kiểm tra mạng hoặc key.', true); }
+}
+function renderResults(items){
+  const box = $('results'); box.replaceChildren();
+  if(!items.length){ msg('Không có kết quả phù hợp.'); return; }
+  items.forEach(it => {
+    const row = document.createElement('div'); row.className='row';
+    const img = document.createElement('img'); img.src = it.thumb; img.alt=''; img.loading='lazy';
+    const meta = document.createElement('div'); meta.className='meta';
+    const n = document.createElement('div'); n.className='name'; n.textContent = it.title;
+    const s = document.createElement('div'); s.className='sub'; s.textContent = it.channel;
+    meta.append(n,s);
+    const b = document.createElement('button'); b.textContent='＋ Chọn';
+    b.onclick = () => { send('add', {id:it.id, title:it.title}); b.textContent='✓ Đã thêm'; setTimeout(()=>b.textContent='＋ Chọn',1200); };
+    row.append(img, meta, b); box.append(row);
+  });
+}
+$('goBtn').onclick = search;
+$('q').addEventListener('keydown', e => { if(e.key==='Enter') search(); });
+
+/* ---------- Tabs ---------- */
+function tab(which){
+  $('paneSearch').style.display = which==='search' ? '' : 'none';
+  $('paneQueue').style.display = which==='queue' ? '' : 'none';
+  $('tabSearch').classList.toggle('on', which==='search'); $('tabQueue').classList.toggle('on', which==='queue');
+}
+$('tabSearch').onclick = () => tab('search'); $('tabQueue').onclick = () => tab('queue');
+
+/* ---------- Điều khiển ---------- */
+$('playBtn').onclick = () => send('play'); $('nextBtn').onclick = () => send('next');
+$('replayBtn').onclick = () => send('replay'); $('muteBtn').onclick = () => send('mute');
+let volTimer; $('vol').oninput = e => { clearTimeout(volTimer); const v=+e.target.value; volTimer=setTimeout(()=>send('vol',{value:v}),80); };
+
+/* ---------- Nhận trạng thái ---------- */
+bc.onmessage = ev => {
+  const m = ev.data || {}; if(m.type !== 'state') return;
+  const s = m.payload || {};
+  $('nowTitle').textContent = s.nowTitle || '—';
+  $('playBtn').textContent = s.playing ? '⏸ Dừng' : '▶ Phát';
+  $('muteBtn').textContent = s.muted ? '🔇' : '🔊';
+  if(typeof s.volume === 'number') $('vol').value = s.volume;
+  const q = s.queue || []; $('qCount').textContent = q.length;
+  const box = $('queueList'); box.replaceChildren();
+  if(!q.length){ const d=document.createElement('div'); d.className='msg'; d.textContent='Hàng chờ trống.'; box.append(d); return; }
+  q.forEach((it,i) => {
+    const row = document.createElement('div'); row.className = 'row' + (i===s.cur ? ' cur' : '');
+    const meta = document.createElement('div'); meta.className='meta';
+    const n = document.createElement('div'); n.className='name'; n.textContent = (i+1) + '. ' + it.title;
+    const sub = document.createElement('div'); sub.className='sub'; sub.textContent = i===s.cur ? 'Đang hát' : (i<s.cur ? 'Đã hát' : 'Chờ');
+    meta.append(n, sub); row.append(meta);
+    if(i > s.cur){ const up=document.createElement('button'); up.className='ghost'; up.textContent='↑ Ưu tiên'; up.onclick=()=>send('prio',{index:i}); row.append(up); }
+    const rm=document.createElement('button'); rm.className='ghost'; rm.textContent='✕'; rm.onclick=()=>send('remove',{index:i}); row.append(rm);
+    box.append(row);
+  });
+};
+send('hello');
+</script>
+</body>
+</html>
