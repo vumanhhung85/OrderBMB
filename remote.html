@@ -134,7 +134,8 @@ const lsSet = (k, v) => { try{ localStorage.setItem(k, v); }catch(e){} };
 
 /* ---------- Kết nối Worker ---------- */
 try{ localStorage.removeItem('bmb_yt_api_key'); }catch(e){}   // bản cũ từng lưu khoá YouTube trong trình duyệt: không còn cần nữa
-let cfg = { api: lsGet(API_NAME) || '', pass: lsGet(PASS_NAME) || '' };
+const DEFAULT_API = 'https://nhac-playlist.vumanhhung85.workers.dev';
+let cfg = { api: lsGet(API_NAME) || DEFAULT_API, pass: lsGet(PASS_NAME) || '' };
 const hasCfg = () => !!(cfg.api && cfg.pass);
 $('gear').onclick = () => { const s = $('settings'); if(s.style.display !== 'block'){ $('apiInput').value = cfg.api; $('passInput').value = cfg.pass; } s.style.display = s.style.display === 'block' ? 'none' : 'block'; };
 $('saveKey').onclick = () => {
@@ -142,7 +143,7 @@ $('saveKey').onclick = () => {
   lsSet(API_NAME, cfg.api); lsSet(PASS_NAME, cfg.pass);
   $('settings').style.display = 'none'; msg('Đã lưu kết nối. Nhập tên bài hoặc dán link để bắt đầu.'); autoRefresh();
 };
-$('clearKey').onclick = () => { try{ localStorage.removeItem(API_NAME); localStorage.removeItem(PASS_NAME); }catch(e){} cfg = { api:'', pass:'' }; $('apiInput').value = ''; $('passInput').value = ''; msg('Đã xoá thông tin kết nối.'); };
+$('clearKey').onclick = () => { try{ localStorage.removeItem(API_NAME); localStorage.removeItem(PASS_NAME); }catch(e){} cfg = { api:DEFAULT_API, pass:'' }; $('apiInput').value = DEFAULT_API; $('passInput').value = ''; msg('Đã xoá thông tin kết nối.'); };
 if(!hasCfg()) $('settings').style.display = 'block';
 function needConfig(){ $('apiInput').value = cfg.api; $('passInput').value = cfg.pass; $('settings').style.display = 'block'; msg('Cần nhập địa chỉ Worker và mật khẩu (nút ⚙).', true); }
 
