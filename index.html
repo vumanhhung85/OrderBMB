@@ -165,7 +165,7 @@
    - Lưu playlist + gọi YouTube API: Cloudflare Worker + D1 (chỉ lưu ID video và thứ tự)
    Dùng cá nhân. Không chặn quảng cáo, không sửa trình phát, không tải video.
    ============================================================ */
-const DEFAULT_API = '';          // có thể điền sẵn địa chỉ Worker; nếu để trống sẽ nhập ở nút ⚙
+const DEFAULT_API = 'https://nhac-playlist.vumanhhung85.workers.dev';          // có thể điền sẵn địa chỉ Worker; nếu để trống sẽ nhập ở nút ⚙
 const $ = id => document.getElementById(id);
 const LS = { api:'np_api', pass:'np_pass', cur:'np_cur', shuf:'np_shuf', rep:'np_rep' };
 const lsGet = k => { try{ return localStorage.getItem(k); }catch(e){ return null; } };
@@ -471,7 +471,7 @@ window.addEventListener('keydown', e => {
 
 /* ---------- Khởi động ---------- */
 paintModes(); renderList();
-if(!cfg.api || !cfg.pass){ $('startInfo').textContent = 'Bấm ⚙ để nhập địa chỉ Worker và mật khẩu.'; openSettings(); }
+if(!cfg.api || !cfg.pass){ $('startInfo').textContent = cfg.api ? 'Nhập mật khẩu truy cập ở cửa sổ vừa mở.' : 'Bấm ⚙ để nhập địa chỉ Worker và mật khẩu.'; openSettings(); }
 else loadPlaylists();
 </script>
 </body>
