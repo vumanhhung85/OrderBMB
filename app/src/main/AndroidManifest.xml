@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+
+    <application
+        android:allowBackup="false"
+        android:icon="@mipmap/ic_launcher"
+        android:roundIcon="@mipmap/ic_launcher"
+        android:label="WD Cloud"
+        android:theme="@style/AppTheme">
+
+        <!-- Duyệt file trên WD (cũng dùng làm màn hình chọn thư mục) -->
+        <activity
+            android:name=".MainActivity"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <activity
+            android:name=".SettingsActivity"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden"
+            android:exported="false"
+            android:label="Cài đặt kết nối"
+            android:windowSoftInputMode="adjustResize" />
+
+        <!-- Nhận file chia sẻ từ Zalo, Thư viện ảnh, Gmail... -->
+        <activity
+            android:name=".ShareActivity"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden"
+            android:excludeFromRecents="true"
+            android:exported="true"
+            android:label="Lưu vào WD Cloud"
+            android:taskAffinity="vn.hung.wdcloud.share">
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="*/*" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.SEND_MULTIPLE" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="*/*" />
+            </intent-filter>
+        </activity>
+
+        <!-- Cấp file tạm (đã tải từ WD) cho app khác mở/gửi -->
+        <provider
+            android:name=".CacheProvider"
+            android:authorities="vn.hung.wdcloud.files"
+            android:exported="false"
+            android:grantUriPermissions="true" />
+    </application>
+</manifest>
