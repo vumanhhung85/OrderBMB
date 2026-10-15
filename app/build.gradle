@@ -10,8 +10,8 @@ android {
         applicationId 'vn.hung.wdcloud'
         minSdk 26          // Android 8.0 trở lên (thư viện mã hoá BouncyCastle cần)
         targetSdk 34
-        versionCode 1
-        versionName '1.0'
+        versionCode 2
+        versionName '1.1'
     }
 
     buildTypes {
@@ -34,6 +34,16 @@ android {
         }
     }
 
+    testOptions {
+        unitTests.all {
+            testLogging {
+                events 'passed', 'failed', 'skipped'
+                exceptionFormat 'full'
+                showStandardStreams true
+            }
+        }
+    }
+
     lint {
         abortOnError false
         checkReleaseBuilds false
@@ -48,4 +58,5 @@ android {
 dependencies {
     implementation 'com.hierynomus:smbj:0.13.0'
     coreLibraryDesugaring 'com.android.tools:desugar_jdk_libs:2.0.4'
+    testImplementation 'junit:junit:4.13.2'
 }
