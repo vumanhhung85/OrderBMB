@@ -6,6 +6,7 @@ import android.content.Intent;
 import android.database.Cursor;
 import android.net.Uri;
 import android.os.Parcelable;
+import android.provider.DocumentsContract;
 import android.provider.OpenableColumns;
 import android.webkit.MimeTypeMap;
 
@@ -17,28 +18,36 @@ import java.nio.charset.StandardCharsets;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Set;
 
-/** Đọc các tệp được chia sẻ/chọn trong điện thoại và tải lên WD. */
+import vn.hung.wdcloud.core.Drive;
+import vn.hung.wdcloud.core.Fs;
+import vn.hung.wdcloud.core.Job;
+import vn.hung.wdcloud.core.SmbPool;
+
+/** Đọc tệp trong điện thoại (chia sẻ, chọn tệp, chọn thư mục, chụp ảnh) và tải lên WD. */
 final class Uploader {
 
     static final class Item {
         Uri uri;
         byte[] data;      // nội dung chữ (khi chia sẻ đoạn văn bản/đường link)
         String name;
+        String relDir = "";  // thư mục con tương đối (khi tải cả thư mục)
+        boolean dirOnly;     // chỉ tạo thư mục (thư mục rỗng)
         long size = -1;
-        String savedPath; // đã lưu xong (để "Thử lại" không tải trùng)
+        String savedPath;    // đã lưu xong (để "Thử lại" không tải trùng)
     }
 
-    interface Listener { boolean on(int index, int total, String name, long done, long size); }
+    static String stamp() { return new SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(new Date()); }
 
     /** Lấy danh sách tệp từ Intent chia sẻ (SEND / SEND_MULTIPLE). */
     @SuppressWarnings("deprecation")
     static List<Item> fromShareIntent(Context c, Intent in) {
         List<Uri> uris = new ArrayList<>();
-        String action = in.getAction();
-        if (Intent.ACTION_SEND_MULTIPLE.equals(action)) {
+        if (Intent.ACTION_SEND_MULTIPLE.equals(in.getAction())) {
             ArrayList<Parcelable> l = in.getParcelableArrayListExtra(Intent.EXTRA_STREAM);
             if (l != null) for (Parcelable p : l) if (p instanceof Uri) uris.add((Uri) p);
         } else {
@@ -62,11 +71,19 @@ final class Uploader {
                 Item it = new Item();
                 it.data = body.getBytes(StandardCharsets.UTF_8);
                 it.size = it.data.length;
-                it.name = "GhiChu_" + new SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(new Date()) + ".txt";
+                it.name = "GhiChu_" + stamp() + ".txt";
                 out.add(it);
             }
         }
         return out;
+    }
+
+    static Item fromFile(java.io.File f, String name) {
+        Item it = new Item();
+        it.uri = Uri.fromFile(f);
+        it.name = name;
+        it.size = f.length();
+        return it;
     }
 
     static Item fromUri(Context c, Uri u, String typeHint) {
@@ -90,15 +107,10 @@ final class Uploader {
         }
         if (it.name == null || it.name.trim().isEmpty()) {
             String seg = u.getLastPathSegment();
-            if (seg != null) {
-                int k = Math.max(seg.lastIndexOf('/'), seg.lastIndexOf(':'));
-                seg = seg.substring(k + 1);
-            }
-            it.name = (seg == null || seg.trim().isEmpty())
-                    ? "Tep_" + new SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(new Date())
-                    : seg;
+            if (seg != null) seg = seg.substring(Math.max(seg.lastIndexOf('/'), seg.lastIndexOf(':')) + 1);
+            it.name = (seg == null || seg.trim().isEmpty()) ? "Tep_" + stamp() : seg;
         }
-        it.name = sanitize(it.name);
+        it.name = clean(it.name);
         if (it.name.lastIndexOf('.') <= 0) {
             String t = null;
             try { t = c.getContentResolver().getType(u); } catch (Exception ignored) {}
@@ -109,16 +121,60 @@ final class Uploader {
         return it;
     }
 
-    /** Bỏ ký tự Windows không cho phép trong tên tệp. */
-    static String sanitize(String n) {
-        n = n.replaceAll("[\\\\/:*?\"<>|\\p{Cntrl}]", "_").trim();
-        while (n.endsWith(".") || n.endsWith(" ")) n = n.substring(0, n.length() - 1);
-        if (n.length() > 180) {
-            int dot = n.lastIndexOf('.');
-            String ext = dot > 0 && n.length() - dot <= 10 ? n.substring(dot) : "";
-            n = n.substring(0, 180 - ext.length()) + ext;
+    static String clean(String n) {
+        String s = Fs.cleanName(n);
+        return s.isEmpty() ? "Tep" : s;
+    }
+
+    /** Tên thư mục gốc đã chọn bằng "Tải lên cả thư mục". */
+    static String treeName(Context c, Uri tree) {
+        String docId = DocumentsContract.getTreeDocumentId(tree);
+        Uri u = DocumentsContract.buildDocumentUriUsingTree(tree, docId);
+        try (Cursor cur = c.getContentResolver().query(u, new String[]{DocumentsContract.Document.COLUMN_DISPLAY_NAME}, null, null, null)) {
+            if (cur != null && cur.moveToFirst() && !cur.isNull(0)) return clean(cur.getString(0));
+        } catch (Exception ignored) {}
+        return "ThuMuc_" + stamp();
+    }
+
+    /** Liệt kê đệ quy mọi tệp trong thư mục điện thoại đã chọn. */
+    static List<Item> fromTree(Context c, Uri tree, Job job) throws IOException {
+        List<Item> out = new ArrayList<>();
+        walk(c, tree, DocumentsContract.getTreeDocumentId(tree), "", out, job);
+        return out;
+    }
+
+    private static void walk(Context c, Uri tree, String docId, String rel, List<Item> out, Job job) throws IOException {
+        job.check();
+        job.item = rel.isEmpty() ? "Đang đọc thư mục…" : rel;
+        Uri kids = DocumentsContract.buildChildDocumentsUriUsingTree(tree, docId);
+        String[] cols = {DocumentsContract.Document.COLUMN_DOCUMENT_ID, DocumentsContract.Document.COLUMN_DISPLAY_NAME,
+                DocumentsContract.Document.COLUMN_MIME_TYPE, DocumentsContract.Document.COLUMN_SIZE};
+        List<String[]> dirs = new ArrayList<>();
+        int files = 0;
+        try (Cursor cur = c.getContentResolver().query(kids, cols, null, null, null)) {
+            while (cur != null && cur.moveToNext()) {
+                String id = cur.getString(0), name = clean(cur.getString(1)), mime = cur.getString(2);
+                if (DocumentsContract.Document.MIME_TYPE_DIR.equals(mime)) {
+                    dirs.add(new String[]{id, name});
+                } else {
+                    Item it = new Item();
+                    it.uri = DocumentsContract.buildDocumentUriUsingTree(tree, id);
+                    it.name = name;
+                    it.relDir = rel;
+                    it.size = cur.isNull(3) ? -1 : cur.getLong(3);
+                    out.add(it);
+                    files++;
+                }
+            }
         }
-        return n.isEmpty() ? "Tep" : n;
+        if (files == 0 && dirs.isEmpty() && !rel.isEmpty()) {
+            Item it = new Item();
+            it.dirOnly = true;
+            it.relDir = rel;
+            it.name = "";
+            out.add(it);
+        }
+        for (String[] d : dirs) walk(c, tree, d[0], Fs.join(rel, d[1]), out, job);
     }
 
     private static InputStream open(Context c, Item it) throws IOException {
@@ -129,21 +185,28 @@ final class Uploader {
         return in;
     }
 
-    /** Tải lên các mục chưa lưu vào thư mục dir (tự tạo thư mục nếu chưa có). */
-    static void upload(final Context c, final List<Item> items, final String dir, final Listener l) throws Exception {
-        Smb.run(c, s -> { Smb.mkdirs(s, dir); return null; }); // kiểm tra kết nối (có nối lại) + tạo thư mục
-        Smb.runOnce(c, s -> {
-            final int total = items.size();
-            for (int i = 0; i < total; i++) {
-                final Item it = items.get(i);
+    /** Tải lên các mục chưa lưu vào thư mục dir của ổ (tự tạo thư mục). Trùng tên thì đặt "tên (1)". */
+    static void upload(final Context c, final List<Item> items, final Drive drive, final String dir, final Job job) throws Exception {
+        SmbPool.run(drive, s -> { Fs.mkdirs(s, dir); return null; });
+        SmbPool.runOnce(drive, s -> {
+            Set<String> made = new HashSet<>();
+            int files = 0;
+            for (Item it : items) if (!it.dirOnly) files++;
+            job.count = files;
+            job.done = savedCount(items);
+            for (Item it : items) {
                 if (it.savedPath != null) continue;
-                final int idx = i;
-                String path = Smb.uniquePath(s, dir, it.name);
-                if (!l.on(idx, total, it.name, 0, it.size)) throw new Smb.Cancelled();
+                job.check();
+                String target = Fs.join(dir, it.relDir);
+                if (!it.relDir.isEmpty() && made.add(target.toLowerCase(Locale.ROOT))) Fs.mkdirs(s, target);
+                if (it.dirOnly) { it.savedPath = target; continue; }
+                String path = Fs.uniquePath(s, target, it.name);
+                job.start(it.name, it.size);
                 try (InputStream in = open(c, it)) {
-                    Smb.uploadStream(s, path, in, done -> l.on(idx, total, it.name, done, it.size));
+                    Fs.upload(s, path, in, false, job);
                 }
                 it.savedPath = path;
+                job.finishItem();
             }
             return null;
         });
@@ -151,7 +214,7 @@ final class Uploader {
 
     static int savedCount(List<Item> items) {
         int n = 0;
-        for (Item it : items) if (it.savedPath != null) n++;
+        for (Item it : items) if (it.savedPath != null && !it.dirOnly) n++;
         return n;
     }
 

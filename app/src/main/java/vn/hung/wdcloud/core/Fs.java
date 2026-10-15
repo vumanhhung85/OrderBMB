@@ -438,9 +438,8 @@ public final class Fs {
         while (!q.isEmpty() && out.size() < limit) {
             job.check();
             String d = q.poll();
-            job.item = d.isEmpty() ? "\\" : d;
-            job.done = ++scanned;
-            job.count = out.size();
+            scanned++;
+            job.item = "Đã xem " + scanned + " thư mục, thấy " + out.size() + "\n" + (d.isEmpty() ? "\\" : d);
             job.changed();
             List<Entry> l;
             try { l = list(s, d, showHidden); } catch (SMBApiException ex) { continue; } // thư mục không có quyền: bỏ qua

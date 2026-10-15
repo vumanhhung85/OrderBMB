@@ -59,6 +59,17 @@ jobs:
           ls deps
           zip -j -q deps.zip deps/*
           gh release create wdcloud-deps deps.zip --prerelease --title "Thư viện để kiểm tra biên dịch" --notes "Không dùng để cài."
+      - name: Report
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p report
+          cp build.log report/ 2>/dev/null || true
+          find app/build/test-results -name '*.xml' -exec cp {} report/ \; 2>/dev/null || true
+          zip -j -q report.zip report/* || echo "trống" > report.zip
+          gh release delete wdcloud-log -y --cleanup-tag || true
+          gh release create wdcloud-log report.zip --target "${{ github.sha }}" --prerelease --title "Log build ${{ github.sha }}" --notes "Log build + kết quả test."
       - name: Publish
         env:
           GH_TOKEN: ${{ github.token }}

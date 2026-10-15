@@ -11,7 +11,7 @@
         android:label="WD Cloud"
         android:theme="@style/AppTheme">
 
-        <!-- Duyệt file trên WD (cũng dùng làm màn hình chọn thư mục) -->
+        <!-- Danh sách ổ + duyệt file kiểu Explorer (cũng dùng làm màn hình chọn nơi lưu) -->
         <activity
             android:name=".MainActivity"
             android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden"
@@ -23,10 +23,15 @@
         </activity>
 
         <activity
-            android:name=".SettingsActivity"
+            android:name=".DriveEditActivity"
             android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden"
             android:exported="false"
-            android:label="Cài đặt kết nối"
+            android:windowSoftInputMode="adjustResize" />
+
+        <activity
+            android:name=".TextEditActivity"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden"
+            android:exported="false"
             android:windowSoftInputMode="adjustResize" />
 
         <!-- Nhận file chia sẻ từ Zalo, Thư viện ảnh, Gmail... -->

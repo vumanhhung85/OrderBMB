@@ -13,7 +13,10 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 
-/** Cho app khác (trình xem ảnh, Zalo...) đọc file tạm đã tải từ WD, chỉ trong thư mục cache của app. */
+/**
+ * Cho app khác đọc tệp tạm đã tải từ WD (thư mục cache của app).
+ * Chỉ cho GHI vào cache/edit (sửa bằng app khác) và cache/cam (máy ảnh chụp vào).
+ */
 public class CacheProvider extends ContentProvider {
     static final String AUTH = "vn.hung.wdcloud.files";
 
@@ -39,11 +42,26 @@ public class CacheProvider extends ContentProvider {
         }
     }
 
+    private boolean writable(File f) {
+        try {
+            String base = getContext().getCacheDir().getCanonicalPath();
+            String p = f.getCanonicalPath();
+            return p.startsWith(base + File.separator + "edit" + File.separator)
+                    || p.startsWith(base + File.separator + "cam" + File.separator);
+        } catch (IOException e) {
+            return false;
+        }
+    }
+
     @Override public boolean onCreate() { return true; }
 
     @Override
     public ParcelFileDescriptor openFile(Uri uri, String mode) throws FileNotFoundException {
-        return ParcelFileDescriptor.open(fileOf(uri), ParcelFileDescriptor.MODE_READ_ONLY);
+        File f = fileOf(uri);
+        int m = ParcelFileDescriptor.parseMode(mode == null ? "r" : mode);
+        boolean wantsWrite = (m & ParcelFileDescriptor.MODE_WRITE_ONLY) != 0 || (m & ParcelFileDescriptor.MODE_READ_WRITE) == ParcelFileDescriptor.MODE_READ_WRITE;
+        if (wantsWrite && !writable(f)) throw new FileNotFoundException("Chỉ đọc");
+        return ParcelFileDescriptor.open(f, wantsWrite ? m : ParcelFileDescriptor.MODE_READ_ONLY);
     }
 
     @Override
@@ -64,7 +82,7 @@ public class CacheProvider extends ContentProvider {
     @Override
     public String getType(Uri uri) {
         String seg = uri.getLastPathSegment();
-        return seg == null ? "application/octet-stream" : Smb.mime(seg);
+        return seg == null ? "application/octet-stream" : Kind.mime(seg);
     }
 
     @Override public Uri insert(Uri uri, ContentValues values) { return null; }

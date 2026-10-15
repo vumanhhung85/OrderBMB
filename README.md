@@ -2,13 +2,17 @@
 
 App Android truy cập thẳng ổ WD qua giao thức chia sẻ thư mục Windows (SMB2/3), không cần dịch vụ My Cloud của WD.
 
-- **Cài đặt kết nối**: địa chỉ (`1.2.3.4` hoặc `\\1.2.3.4\TênShare`), tên thư mục chia sẻ, tài khoản, mật khẩu (mã hoá bằng Android Keystore, chỉ lưu trong máy). Có nút *Kiểm tra kết nối*.
-- **Duyệt file**: mở, gửi qua Zalo/app khác, lưu về điện thoại, tải lên (chọn nhiều tệp), tạo thư mục, đổi tên, xoá. Nhấn giữ một dòng để hiện các thao tác.
-- **Nhận file chia sẻ**: trong Zalo/Thư viện ảnh… bấm *Chia sẻ* → *Lưu vào WD Cloud*. Mặc định tự tải lên sau 3 giây vào thư mục đặt trong Cài đặt (dùng lại thư mục gần nhất); bấm *Đổi thư mục…* để chọn nơi khác. Trùng tên thì tự đặt `ten (1).jpg`. Chia sẻ đoạn chữ/đường link thì lưu thành `GhiChu_….txt`.
+- **Nhiều ổ**: mỗi thư mục chia sẻ trên WD (\\IP\TênShare) là một ổ, tài khoản riêng (tạo trong trang quản trị WD). Nút *Lấy danh sách từ WD* đọc các thư mục chia sẻ; khi thêm mới chọn được nhiều để thêm nhiều ổ cùng lúc. Mật khẩu mã hoá bằng Android Keystore. Cấu hình 1 ổ của bản 1.0 tự chuyển sang.
+- **Explorer**: thanh đường dẫn bấm được; thanh nút Lên / Tải lên (tệp, cả thư mục, chụp ảnh) / Tạo mới (thư mục, tệp .txt) / Dán / Sắp xếp. Nhấn giữ để chọn nhiều: Chép, Cắt, Xoá, Gửi, Tải về điện thoại, Đổi tên, Sửa, Mở bằng, Sao chép đường dẫn, Ghim, Thuộc tính. Dán sang ổ khác được; trùng tên thì hỏi Giữ cả hai / Ghi đè / Bỏ qua.
+- **Chép trong cùng ổ** dùng chép phía máy chủ (FSCTL_SRV_COPYCHUNK) nên không tốn dữ liệu điện thoại; chuyển trong cùng ổ = đổi tên tức thì. Giữ ngày sửa đổi.
+- **Tìm**: lọc ngay trong thư mục, hoặc tìm trong mọi thư mục con; không phân biệt dấu ("bao cao" ra "Báo cáo").
+- **Sửa**: tệp văn bản sửa ngay trong app (giữ bảng mã/BOM, ghi tệp tạm rồi thay thế); tệp khác mở bằng app sửa, quay lại thì hỏi lưu đè/lưu bản sao.
+- **Nhận file chia sẻ**: Zalo/Thư viện ảnh… → *Chia sẻ* → *Lưu vào WD Cloud*. Tự tải lên sau 3 giây vào nơi lưu gần nhất (ổ + thư mục); *Đổi nơi lưu…* để chọn ổ/thư mục khác.
 
 ## Mã nguồn
 - Java thuần + thư viện [smbj](https://github.com/hierynomus/smbj) 0.13.0 (BouncyCastle cho NTLM/mã hoá). Không dùng AndroidX.
-- `Smb.java` giữ một kết nối dùng chung, tự nối lại khi rớt hoặc để yên quá 4 phút.
+- `core/` thuần Java (không phụ thuộc Android): `SmbPool` (mỗi ổ một phiên, tự nối lại), `Fs` (liệt kê, chép/chuyển/xoá, tìm, ghi an toàn), `ShareEnum` (NetrShareEnum qua \\PIPE\srvsvc).
+- Test `app/src/test/.../FsTest.java` chạy với Samba thật do GitHub Actions dựng (2 thư mục chia sẻ). Log + kết quả test ở Release `wdcloud-log`.
 - minSdk 26 (Android 8.0+).
 
 ## Build
